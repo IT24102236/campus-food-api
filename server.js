@@ -3,19 +3,16 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
-// Import route modules
-const studentRoutes = require('./routes/student');
-const menuItemRoutes = require('./routes/menuItems');
-const orderRoutes = require('./routes/orders');
-const analyticsRoutes = require('./routes/analytics');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI;
 
-// Check if MONGODB_URI is defined
-if (!MONGODB_URI) {
-  console.error('MONGODB_URI is not defined in .env file');
+// Use MONGO_URI from .env file
+const MONGO_URI = process.env.MONGO_URI;
+
+// Check if connection string exists
+if (!MONGO_URI) {
+  console.error('MONGO_URI is not defined in .env file');
+  console.error('Please add: MONGO_URI=mongodb://localhost:27017/campus-food-db');
   process.exit(1);
 }
 
@@ -26,33 +23,41 @@ app.use(express.json());
 // Root route
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Campus Food Ordering API is running',
-    endpoints: {
-      students: 'POST /students, GET /students, GET /students/:id',
-      menuItems: 'POST /menu-items, GET /menu-items, GET /menu-items/search',
-      orders: 'POST /orders, GET /orders, GET /orders/:id, PATCH /orders/:id/status, DELETE /orders/:id',
-      analytics: 'GET /analytics/total-spent/:studentId, GET /analytics/top-menu-items, GET /analytics/daily-orders'
-    }
+    message: 'Campus Food API is running with Local MongoDB!',
+    mongodb_status: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
 });
 
-// Attach routes
+// Import routes
+const studentRoutes = require('./routes/student');
+const menuItemRoutes = require('./routes/menuItems');
+const orderRoutes = require('./routes/orders');
+const analyticsRoutes = require('./routes/analytics');
+
+// Use routes
 app.use('/students', studentRoutes);
 app.use('/menu-items', menuItemRoutes);
 app.use('/orders', orderRoutes);
 app.use('/analytics', analyticsRoutes);
 
-// Database connection
-console.log('🔄 Connecting to MongoDB Atlas...');
-mongoose.connect(MONGODB_URI)
-.then(() => {
-  console.log('✅ Connected to MongoDB Atlas successfully');
-  console.log('📊 Database: campus-food');
-  app.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+// Connect to MongoDB
+console.log('Connecting to Local MongoDB...');
+console.log('Connection:', MONGO_URI);
+
+mongoose.connect(MONGO_URI)
+  .then(() => {
+    console.log('Connected to Local MongoDB successfully!');
+    console.log('Database Name:', mongoose.connection.name);
+    console.log(`Server running on http://localhost:${PORT}`);
+    app.listen(PORT, () => {
+      console.log(`API listening on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('MongoDB connection error:', err.message);
+    console.log('\nTroubleshooting:');
+    console.log('1. Make sure MongoDB is running');
+    console.log('2. Check MongoDB Compass can connect');
+    console.log('3. Verify MONGO_URI in .env file');
+    process.exit(1);
   });
-})
-.catch((err) => {
-  console.error('MongoDB Atlas connection error:', err.message);
-  process.exit(1);
-});
